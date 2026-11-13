@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Version</key>
+	<integer>1</integer>
+	<key>Layouts</key>
+	<array>
+		<dict>
+			<key>id</key>
+			<integer>1</integer>
+			<key>name</key>
+			<string>ThinkPad X13 Gen 2 (2 mic, 48 kHz)</string>
+			<key>platform</key>
+			<string>tgl</string>
+			<key>engine</key>
+			<string>tgl</string>
+			<key>micCount</key>
+			<integer>2</integer>
+			<key>codecs</key>
+			<array>
+				<string>ALC257</string>
+			</array>
+
+			<key>dsp</key>
+			<dict>
+				<key>firmware</key>
+				<string>sof-tgl.ri</string>
+				<key>streamIndex</key>
+				<integer>6</integer>
+				<key>pcmTag</key>
+				<integer>7</integer>
+				<key>pipelineId</key>
+				<integer>57</integer>
+				<key>sourceRate</key>
+				<integer>48000</integer>
+				<key>sourceChannels</key>
+				<integer>4</integer>
+				<key>sourceBits</key>
+				<integer>32</integer>
+				<key>gain</key>
+				<integer>100</integer>
+			</dict>
+
+			<key>hda</key>
+			<dict>
+				<key>outputChannels</key>
+				<integer>2</integer>
+				<key>channelMap</key>
+				<array>
+					<integer>0</integer>
+					<integer>1</integer>
+				</array>
+				<key>safetyFrames</key>
+				<integer>57</integer>
+				<key>sampleRates</key>
+				<array>
+					<integer>44100</integer>
+					<integer>48000</integer>
+				</array>
+				<key>bits</key>
+				<array>
+					<integer>16</integer>
+					<integer>24</integer>
+					<integer>32</integer>
+				</array>
+			</dict>
+
+			<key>keepAliveSec</key>
+			<integer>60</integer>
+			<key>allowD0i3</key>
+			<true/>
+		</dict>
+
+		<dict>
+			<key>id</key>
+			<integer>2</integer>
+			<key>name</key>
+			<string>ThinkPad X1 Carbon Gen 7 (4 mic, 48 kHz)</string>
+			<key>platform</key>
+			<string>cml</string>
+			<key>engine</key>
+			<string>cml</string>
+			<key>micCount</key>
+			<integer>4</integer>
+			<key>codecs</key>
+			<array>
+				<string>ALC285</string>
+			</array>
+
+			<key>dsp</key>
+			<dict>
+				<key>firmware</key>
+				<string>sof-cml.ri</string>
+				<key>streamIndex</key>
+				<integer>6</integer>
+				<key>pcmTag</key>
+				<integer>7</integer>
+				<key>pipelineId</key>
+				<integer>57</integer>
+				<key>sourceRate</key>
+				<integer>48000</integer>
+				<key>sourceChannels</key>
+				<integer>4</integer>
+				<key>sourceBits</key>
+				<integer>32</integer>
+				<key>gain</key>
+				<integer>100</integer>
+			</dict>
+
+			<key>hda</key>
+			<dict>
+				<key>outputChannels</key>
+				<integer>2</integer>
+				<key>channelMap</key>
+				<array>
+					<integer>0</integer>
+					<integer>1</integer>
+				</array>
+				<key>safetyFrames</key>
+				<integer>57</integer>
+				<key>sampleRates</key>
+				<array>
+					<integer>48000</integer>
+				</array>
+				<key>bits</key>
+				<array>
+					<integer>16</integer>
+					<integer>24</integer>
+					<integer>32</integer>
+				</array>
+			</dict>
+
+			<key>keepAliveSec</key>
+			<integer>60</integer>
+			<key>allowD0i3</key>
+			<false/>
+		</dict>
+
+		<dict>
+			<key>id</key>
+			<integer>3</integer>
+			<key>name</key>
+			<string>ThinkPad X13 Gen 2 (mono mix, 48 kHz)</string>
+			<key>platform</key>
+			<string>tgl</string>
+			<key>engine</key>
+			<string>tgl</string>
+			<key>micCount</key>
+			<integer>2</integer>
+			<key>codecs</key>
+			<array>
+				<string>ALC257</string>
+			</array>
+
+			<key>dsp</key>
+			<dict>
+				<key>firmware</key>
+				<string>sof-tgl.ri</string>
+				<key>streamIndex</key>
+				<integer>6</integer>
+				<key>pcmTag</key>
+				<integer>7</integer>
+				<key>pipelineId</key>
+				<integer>57</integer>
+				<key>sourceRate</key>
+				<integer>48000</integer>
+				<key>sourceChannels</key>
+				<integer>4</integer>
+				<key>sourceBits</key>
+				<integer>32</integer>
+				<key>gain</key>
+				<integer>100</integer>
+			</dict>
+
+			<key>hda</key>
+			<dict>
+				<key>outputChannels</key>
+				<integer>1</integer>
+				<key>channelMap</key>
+				<array>
+					<integer>0</integer>
+				</array>
+				<key>safetyFrames</key>
+				<integer>57</integer>
+				<key>sampleRates</key>
+				<array>
+					<integer>48000</integer>
+				</array>
+				<key>bits</key>
+				<array>
+					<integer>16</integer>
+					<integer>24</integer>
+					<integer>32</integer>
+				</array>
+			</dict>
+
+			<key>keepAliveSec</key>
+			<integer>60</integer>
+			<key>allowD0i3</key>
+			<true/>
+		</dict>
+	</array>
+</dict>
+</plist>
