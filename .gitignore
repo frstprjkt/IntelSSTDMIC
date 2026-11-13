@@ -1,2 +1,4 @@
 .DS_Store
 kext/build/
+MacKernelSDK/
+Lilu/
