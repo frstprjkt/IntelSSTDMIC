@@ -12,6 +12,7 @@ enum class PlatformFamily : uint32_t {
     Unknown = 0,
     TigerLake = 1,
     CometLake = 2,
+    AlderLake = 3,
 };
 
 struct LayoutConfig {
@@ -20,7 +21,7 @@ struct LayoutConfig {
     char name[64] {};
 
     PlatformFamily platform {PlatformFamily::Unknown};
-    char engine[24] {};             // factory selector: "tgl", "cml", ...
+    char engine[24] {};             // factory selector: "tgl", "cml", "adl"
 
     uint32_t micCount {2};
     uint32_t codecCount {0};

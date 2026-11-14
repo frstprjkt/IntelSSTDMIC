@@ -22,7 +22,7 @@ IntelSSTDMIC 把 cAVS/SOF 的 PDM 麦克风阵列接入 AppleHDA 原生的 **内
 | --- | --- | --- |
 | 配置 | `LayoutConfig`、`LayoutRegistry` | layout id → 平台/引擎、固件标识、麦克风几何、HDA 格式；内置默认 + 可选 `Layouts.plist`。 |
 | 硬件 + 原生 | `HdaAudioEngine`、`NativeHdaOps`、`IAudioEngineHooks` | HDA BAR/寄存器/capability/descriptor 访问；默认 Hook 调用 AppleHDA 原始函数。 |
-| DSP | `IDspAudioEngine`、`IntelDspAudioEngine`、`TglDspAudioEngine`、`CmlDspAudioEngine` | 公共 SOF 加载、IPC3、host ring、会话状态和采样转换；平台子类只添加身份/core mask/固件。 |
+| DSP | `IDspAudioEngine`、`IntelDspAudioEngine`、`AdlDspAudioEngine`、`TglDspAudioEngine`、`CmlDspAudioEngine` | 公共 SOF 加载、IPC3、host ring、会话状态和采样转换；平台子类只添加身份/core mask/固件。 |
 | 创建 | `IDspAudioEngineFactory`、`DspAudioEngineFactory`、`DspEngineCreateRequest/Result` | 唯一创建缝合点；配置只是其中一种策略；失败时创建 native `HdaAudioEngine`。 |
 | 分发 | `DspAudioEngineManager` | 实现 `IAudioEngineHooks`，转发给活动引擎或 native 兜底。 |
 | 路由 | `HookManager` | 静态 AppleHDA trampoline、Lilu 路由、`NativeHdaOps`。 |
@@ -46,7 +46,7 @@ flowchart TB
         FAC["DspAudioEngineFactory"]
         DE["IntelDspAudioEngine（活动）"]
         HDA["HdaAudioEngine<br/>原生默认 + HDA 硬件"]
-        PLAT["TglDspAudioEngine / CmlDspAudioEngine"]
+        PLAT["Adl / Tgl / CmlDspAudioEngine"]
         NAT["HdaAudioEngine（native 兜底）"]
     end
 
@@ -123,6 +123,7 @@ classDiagram
         #inFlight
     }
 
+    class AdlDspAudioEngine
     class TglDspAudioEngine
     class CmlDspAudioEngine
     class DspAudioEngineManager {
@@ -144,6 +145,7 @@ classDiagram
     IAudioEngineHooks <|.. HdaAudioEngine
     HdaAudioEngine <|-- IntelDspAudioEngine
     IDspAudioEngine <|.. IntelDspAudioEngine
+    IntelDspAudioEngine <|-- AdlDspAudioEngine
     IntelDspAudioEngine <|-- TglDspAudioEngine
     IntelDspAudioEngine <|-- CmlDspAudioEngine
     IAudioEngineHooks <|.. DspAudioEngineManager
@@ -164,7 +166,7 @@ classDiagram
 | `HdaAudioEngine` | 默认原生行为 + HDA 硬件访问。Manager 的 native 兜底只使用 Hook 默认实现，不 attach 硬件。 |
 | `IDspAudioEngine` | Manager/Factory 使用的控制和状态接口。 |
 | `IntelDspAudioEngine` | 公共 DSP 实现：ring、IPC、会话状态、采样路径。 |
-| `TglDspAudioEngine` / `CmlDspAudioEngine` | cAVS 2.5 / 1.8 身份、core mask、内嵌固件。 |
+| `AdlDspAudioEngine` / `TglDspAudioEngine` / `CmlDspAudioEngine` | Alder Lake / Tiger Lake（cAVS 2.5）与 Comet Lake（cAVS 1.8）身份、core mask、内嵌固件。 |
 | `DspAudioEngineManager` | 实现 `IAudioEngineHooks` 的代理；持有 Factory 结果并转发。 |
 | `DspAudioEngineFactory` | 按 layout 创建具体引擎；失败时创建 native 兜底并保留错误字符串。 |
 | `LayoutRegistry` | 解析 `Layouts.plist`、合并内置 layout、解析启动参数。 |
@@ -178,7 +180,7 @@ classDiagram
 1. kext 通过早期 `IOResources` personality 加载，PCI personality 匹配 Intel HDA 控制器。
 2. `IntelSSTDMIC::start` 读取 layout 注册表、解析 layout、创建 Manager，并调用
    `factory.create()`。
-3. Factory 创建 `TglDspAudioEngine`/`CmlDspAudioEngine`，调用 `initialize()`。任何失败都会改为
+3. Factory 创建 `AdlDspAudioEngine`/`TglDspAudioEngine`/`CmlDspAudioEngine`，调用 `initialize()`。任何失败都会改为
    创建 native `HdaAudioEngine` 并记录 `CreateError`。
 4. AppleHDA 加载时 `HookManager` 路由符号，并把 `NativeHdaOps` 注入 Manager/引擎。
 
@@ -275,7 +277,7 @@ Service 加入 AppleHDA 的 PM 树。录音期间保持 state 1；`setPowerState
 记录日志并回退 native。不设置该参数时驱动不安装 DSP Hook，完全走原生路径。
 
 layout id 从 1 开始（0 保留给关闭）。内置 layout：1（TGL X13 立体声）、2（CML X1C7）、3（TGL X13
-单声道）。`Layouts/Layouts.plist` 的所有条目在构建时编译进二进制，并写入 kext 的 `Info.plist`
+单声道）、4（ADL 通用立体声）。`Layouts/Layouts.plist` 的所有条目在构建时编译进二进制，并写入 kext 的 `Info.plist`
 （`IntelSSTDMLayouts`、`IntelSSTDMLayoutIDs`）。
 
 关键字段：`platform`、`engine`、`micCount`、`codecs`（元数据）、`dsp.{firmware,streamIndex,

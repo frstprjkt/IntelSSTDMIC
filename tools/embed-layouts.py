@@ -42,6 +42,8 @@ def platform(value):
         return "PlatformFamily::TigerLake"
     if v in ("cml", "cometlake", "comet-lake", "cnl", "cannonlake", "2"):
         return "PlatformFamily::CometLake"
+    if v in ("adl", "alderlake", "alder-lake", "3"):
+        return "PlatformFamily::AlderLake"
     return "PlatformFamily::Unknown"
 
 

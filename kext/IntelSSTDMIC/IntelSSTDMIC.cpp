@@ -22,6 +22,24 @@ static bool bootArg(const char *name) {
     return BootArgs::present(name[0] == '-' ? name + 1 : name);
 }
 
+static const char *platformTag(PlatformFamily platform) {
+    switch (platform) {
+        case PlatformFamily::TigerLake: return "TGL";
+        case PlatformFamily::CometLake: return "CML";
+        case PlatformFamily::AlderLake: return "ADL";
+        default: return "?";
+    }
+}
+
+static const char *platformNameOf(PlatformFamily platform) {
+    switch (platform) {
+        case PlatformFamily::TigerLake: return "TigerLake";
+        case PlatformFamily::CometLake: return "CometLake";
+        case PlatformFamily::AlderLake: return "AlderLake";
+        default: return "Unknown";
+    }
+}
+
 static IOPMPowerState gPowerStates[2] = {
     { kIOPMPowerStateVersion1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
     { kIOPMPowerStateVersion1, kIOPMPowerOn | kIOPMDeviceUsable, kIOPMPowerOn, kIOPMPowerOn, 0, 0, 0, 0, 0, 0, 0, 0 },
@@ -58,12 +76,15 @@ void IntelSSTDMIC::detectPlatform(uint16_t device) {
             platformFamily = PlatformFamily::CometLake; break;
         case 0xA0C8: case 0x43C8:
             platformFamily = PlatformFamily::TigerLake; break;
+        case 0x51C8: case 0x51CC: case 0x51C9: case 0x51CD:
+            platformFamily = PlatformFamily::AlderLake; break;
         case 0x34C8:
             platformFamily = PlatformFamily::CometLake; break;
         default: break;
     }
     if (bootArg("-sstdmiccml")) platformFamily = PlatformFamily::CometLake;
     else if (bootArg("-sstdmictgl")) platformFamily = PlatformFamily::TigerLake;
+    else if (bootArg("-sstdmicadl")) platformFamily = PlatformFamily::AlderLake;
 }
 
 static bool parseLayoutArg(const char *text, int32_t &value) {
@@ -112,6 +133,8 @@ const LayoutConfig *IntelSSTDMIC::selectLayout() {
         if (!strcmp(fw, "tgl") || !strcmp(fw, "tigerlake")) platformFamily = PlatformFamily::TigerLake;
         else if (!strcmp(fw, "cml") || !strcmp(fw, "cnl") || !strcmp(fw, "cometlake"))
             platformFamily = PlatformFamily::CometLake;
+        else if (!strcmp(fw, "adl") || !strcmp(fw, "alderlake") || !strcmp(fw, "alder-lake"))
+            platformFamily = PlatformFamily::AlderLake;
     }
 
     if (!autoMode) {
@@ -130,8 +153,7 @@ const LayoutConfig *IntelSSTDMIC::selectLayout() {
             return &LayoutRegistry::none();
         }
         logLine("layout %u selected (%s, %s, engine %s, firmware %s)",
-                p->id, p->name, p->platform == PlatformFamily::TigerLake ? "TGL" :
-                p->platform == PlatformFamily::CometLake ? "CML" : "?", p->engine, p->firmware);
+                p->id, p->name, platformTag(p->platform), p->engine, p->firmware);
         return p;
     }
 
@@ -140,8 +162,7 @@ const LayoutConfig *IntelSSTDMIC::selectLayout() {
                                              model[0] ? model : nullptr, platformFamily);
     if (p && p->valid)
         logLine("layout %u auto-selected (%s, %s, engine %s, firmware %s)",
-                p->id, p->name, p->platform == PlatformFamily::TigerLake ? "TGL" :
-                p->platform == PlatformFamily::CometLake ? "CML" : "?", p->engine, p->firmware);
+                p->id, p->name, platformTag(p->platform), p->engine, p->firmware);
     else
         logLine("no layout available for auto detection (profile '%s', model '%s') - native fallback",
                 profile, model);
@@ -326,8 +347,7 @@ void IntelSSTDMIC::publish() {
 
     if (logLock) IOLockLock(logLock);
     setProperty("IntelSSTDMICVersion", kIntelSSTDMICVersion);
-    setProperty("PlatformFamily", platformFamily == PlatformFamily::TigerLake ? "TigerLake" :
-                                  platformFamily == PlatformFamily::CometLake ? "CometLake" : "Unknown");
+    setProperty("PlatformFamily", platformNameOf(platformFamily));
     setProperty("PciVendorDeviceId", pciId, 32);
     setProperty("Injector", injectorEnabled);
 

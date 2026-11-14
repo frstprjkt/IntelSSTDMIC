@@ -6,6 +6,7 @@ LILU     ?= $(CURDIR)/../Lilu.kext/Contents/Resources
 # Both images are compiled into the binary: an OpenCore-injected kext has no readable directory.
 FW_TGL   = Firmware/TGL/sof-tgl.ri
 FW_CML   = Firmware/CML/sof-cml.ri
+FW_ADL   = Firmware/ADL/sof-adl.ri
 LAYOUTS  = ../Layouts/Layouts.plist
 LAYOUTPY = ../tools/embed-layouts.py
 VERSION  = 1.0.0
@@ -32,9 +33,9 @@ build/%.o: $(SRC)/%.cpp $(SRC)/*.hpp
 	@mkdir -p build
 	clang++ $(CXXFLAGS) -c $< -o $@
 
-build/Firmware.c: $(FW_TGL) $(FW_CML) ../tools/gen-fw.py
+build/Firmware.c: $(FW_TGL) $(FW_CML) $(FW_ADL) ../tools/gen-fw.py
 	@mkdir -p build
-	python3 ../tools/gen-fw.py --tgl $(FW_TGL) --cml $(FW_CML) -o $@
+	python3 ../tools/gen-fw.py --tgl $(FW_TGL) --cml $(FW_CML) --adl $(FW_ADL) -o $@
 
 build/Firmware.o: build/Firmware.c
 	clang $(CFLAGS) -c $< -o $@

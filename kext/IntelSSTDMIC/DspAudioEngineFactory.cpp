@@ -43,7 +43,9 @@ DspEngineCreateResult DspAudioEngineFactory::create(const DspEngineCreateRequest
     const char *engine = layout->engine;
 
     IntelDspAudioEngine *active = nullptr;
-    if (!strcmp(engine, "tgl") || platform == PlatformFamily::TigerLake)
+    if (!strcmp(engine, "adl") || platform == PlatformFamily::AlderLake)
+        active = new AdlDspAudioEngine();
+    else if (!strcmp(engine, "tgl") || platform == PlatformFamily::TigerLake)
         active = new TglDspAudioEngine();
     else if (!strcmp(engine, "cml") || platform == PlatformFamily::CometLake)
         active = new CmlDspAudioEngine();

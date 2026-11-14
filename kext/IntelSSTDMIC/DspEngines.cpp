@@ -5,6 +5,8 @@ extern "C" const unsigned char kSofTglRi[];
 extern "C" const unsigned int kSofTglRiSize;
 extern "C" const unsigned char kSofCmlRi[];
 extern "C" const unsigned int kSofCmlRiSize;
+extern "C" const unsigned char kSofAdlRi[];
+extern "C" const unsigned int kSofAdlRiSize;
 
 uint32_t coreMaskOverride(uint32_t def) {
     int maskArg = -1;
@@ -19,6 +21,15 @@ const uint8_t *TglDspAudioEngine::firmwareImage(uint32_t &size) const {
 }
 
 uint32_t TglDspAudioEngine::targetCoreMask() const {
+    return coreMaskOverride(1u);
+}
+
+const uint8_t *AdlDspAudioEngine::firmwareImage(uint32_t &size) const {
+    size = kSofAdlRiSize;
+    return kSofAdlRi;
+}
+
+uint32_t AdlDspAudioEngine::targetCoreMask() const {
     return coreMaskOverride(1u);
 }
 

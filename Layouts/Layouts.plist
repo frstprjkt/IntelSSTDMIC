@@ -200,6 +200,68 @@
 			<key>allowD0i3</key>
 			<true/>
 		</dict>
+
+		<dict>
+			<key>id</key>
+			<integer>4</integer>
+			<key>name</key>
+			<string>Alder Lake (2 mic, 48 kHz)</string>
+			<key>platform</key>
+			<string>adl</string>
+			<key>engine</key>
+			<string>adl</string>
+			<key>micCount</key>
+			<integer>2</integer>
+
+			<key>dsp</key>
+			<dict>
+				<key>firmware</key>
+				<string>sof-adl.ri</string>
+				<key>streamIndex</key>
+				<integer>6</integer>
+				<key>pcmTag</key>
+				<integer>7</integer>
+				<key>pipelineId</key>
+				<integer>57</integer>
+				<key>sourceRate</key>
+				<integer>48000</integer>
+				<key>sourceChannels</key>
+				<integer>4</integer>
+				<key>sourceBits</key>
+				<integer>32</integer>
+				<key>gain</key>
+				<integer>100</integer>
+			</dict>
+
+			<key>hda</key>
+			<dict>
+				<key>outputChannels</key>
+				<integer>2</integer>
+				<key>channelMap</key>
+				<array>
+					<integer>0</integer>
+					<integer>1</integer>
+				</array>
+				<key>safetyFrames</key>
+				<integer>57</integer>
+				<key>sampleRates</key>
+				<array>
+					<integer>44100</integer>
+					<integer>48000</integer>
+				</array>
+				<key>bits</key>
+				<array>
+					<integer>16</integer>
+					<integer>24</integer>
+					<integer>32</integer>
+				</array>
+			</dict>
+
+			<key>keepAliveSec</key>
+			<integer>60</integer>
+			<key>allowD0i3</key>
+			<false/>
+		</dict>
 	</array>
 </dict>
 </plist>

@@ -24,14 +24,14 @@ the DSP bring-up work.
   HDA stream identifiers and supported formats. At build time every entry of
   `Layouts/Layouts.plist` is compiled into the binary **and** copied into the kext `Info.plist`
   (`IntelSSTDMLayouts` / `IntelSSTDMLayoutIDs`). There is no runtime plist dependency.
-- **Firmware embedded**: `kext/Firmware/TGL/sof-tgl.ri` and `CML/sof-cml.ri` are compiled into the
-  binary. An OpenCore-injected Lilu plugin has no readable bundle at runtime, so no external
-  firmware path is used.
+- **Firmware embedded**: `kext/Firmware/TGL/sof-tgl.ri`, `CML/sof-cml.ri` and `ADL/sof-adl.ri`
+  are compiled into the binary. An OpenCore-injected Lilu plugin has no readable bundle at runtime,
+  so no external firmware path is used.
 - **Two-layer engine model**:
   - `HdaAudioEngine` is the default native path; its methods call the original AppleHDA functions.
   - `IntelDspAudioEngine` derives from it, implements the common SOF boot / IPC / ring / sample path,
-    and overrides only what is needed. Concrete `TglDspAudioEngine` / `CmlDspAudioEngine` add
-    platform identity, core mask and firmware image.
+    and overrides only what is needed. Concrete `AdlDspAudioEngine` / `TglDspAudioEngine` /
+    `CmlDspAudioEngine` add platform identity, core mask and firmware image.
 - **Factory + Manager**: `IDspAudioEngineFactory` owns creation; configuration is one strategy.
   `DspAudioEngineManager` implements the hook interface and forwards every call to the created
   engine or to the native fallback. If creation fails, the factory creates a native
@@ -50,6 +50,7 @@ kext/
   IntelSSTDMIC/              kext sources
   Firmware/TGL/sof-tgl.ri    Intel production-signed SOF image (Tiger Lake)
   Firmware/CML/sof-cml.ri    Intel production-signed SOF image (Comet Lake / Cannon Lake)
+  Firmware/ADL/sof-adl.ri    Intel production-signed SOF image (Alder Lake)
   Makefile                   builds build/IntelSSTDMIC.kext (+ .zip)
 Layouts/Layouts.plist        build-time layout database
 ```
@@ -62,16 +63,17 @@ IntelSSTDMIC (IOService, IDspHost)
  |- DspAudioEngineFactory         creation seam; native fallback
  |- DspAudioEngineManager         IAudioEngineHooks proxy; owns active/native
  |- HookManager                   static trampolines + NativeHdaOps
- \- IntelDspAudioEngine                active engine
+ \- IntelDspAudioEngine           active engine
       |- HdaAudioEngine           HDA registers/caps + native AppleHDA defaults
+      |- AdlDspAudioEngine        cAVS 2.5 (Alder Lake)
       |- TglDspAudioEngine        cAVS 2.5
       \- CmlDspAudioEngine        cAVS 1.8
 ```
 
 ## Requirements
 
-- Intel Tiger Lake (cAVS 2.5) or Comet Lake / Cannon Lake / Coffee Lake (cAVS 1.8) with the
-  Intel HDA controller at `00:1f.3`.
+- Intel Alder Lake (cAVS 2.5), Tiger Lake (cAVS 2.5) or Comet Lake / Cannon Lake / Coffee Lake
+  (cAVS 1.8) with the Intel HDA controller at `00:1f.3`.
 - [Lilu](https://github.com/acidanthera/Lilu) loaded before this kext.
 - AppleHDA (or a driver that leaves the HDA controller to AppleHDA).
 - OpenCore or another bootloader that can inject a kext and boot arguments.
@@ -119,12 +121,12 @@ images are compiled into the executable.
 | `-sstdmiclayout=auto\|0\|N` | Master switch. `auto`: detect profile/model/platform default; `0`: keep native HDA; `N>0`: select layout (failure logs and falls back to native). Absent: no DSP hooks, fully native. |
 | `-sstdmicprofile=<name>` | Select a layout by name/id string (alias). |
 | `-sstdmicmodel=<text>` | Select a layout whose name/id contains the text. |
-| `-sstdmicfw=tgl\|cml` | Platform/firmware selector; also chooses the platform default layout. |
+| `-sstdmicfw=adl\|tgl\|cml` | Platform/firmware selector; also chooses the platform default layout. |
 | `-sstdmicgain=<pct>` | Software gain override (0-400). |
 | `-sstdmiccoremask=<n>` | Override the DSP core mask. |
 | `-sstdmicsnoop=0\|2` | Do not touch PCI DEVC NSNPEN / leave it set. |
 | `-sstdmicpower=0\|1` | Never / always join the HDA driver's power tree. |
-| `-sstdmiccml`, `-sstdmictgl` | Force platform family on unlisted PCI ids. |
+| `-sstdmicadl`, `-sstdmiccml`, `-sstdmictgl` | Force platform family on unlisted or spoofed PCI ids. |
 | `-sstdmicforce` | Attach on an unlisted Intel HDA PCI id. |
 | `-sstdmicdma=2` | Force physical DMA addresses (diagnostics). |
 | `-sstdmicasync` | Dispatch lifecycle events on the Manager workloop instead of calling synchronously (fallback). |
@@ -149,6 +151,7 @@ Built-in layouts (built from `Layouts/Layouts.plist`):
 | 1 | Tiger Lake | 2 | `tgl` | ThinkPad X13 Gen 2 stereo |
 | 2 | Comet Lake | 4 | `cml` | ThinkPad X1 Carbon Gen 7 |
 | 3 | Tiger Lake | 2 | `tgl` | mono mix |
+| 4 | Alder Lake | 2 | `adl` | ADL-P/U/M/S DMIC |
 
 Schema (`Layouts.plist`):
 
@@ -156,7 +159,7 @@ Schema (`Layouts.plist`):
 | --- | --- |
 | `id` | Numeric layout id. |
 | `name` | Human-readable name. |
-| `platform` | `tgl` or `cml`. |
+| `platform` | `adl`, `tgl` or `cml`. |
 | `engine` | Factory selector: `tgl`, `cml`, or a future engine class key. |
 | `micCount` | Physical microphones (metadata / validation). |
 | `codecs` | Optional ALC model list (metadata; runtime engine identity is discovered from AppleHDA). |

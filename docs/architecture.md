@@ -22,7 +22,7 @@ Microphone**. It never creates a virtual device and never touches other inputs o
 | --- | --- | --- |
 | Configuration | `LayoutConfig`, `LayoutRegistry` | Layout id → platform/engine, firmware identity, microphone geometry, HDA formats. Embedded defaults plus optional `Layouts.plist`. |
 | Hardware + native | `HdaAudioEngine`, `NativeHdaOps`, `IAudioEngineHooks` | HDA BAR/register/capability/DMA-descriptor access; default hook methods that call the original AppleHDA functions. |
-| DSP | `IDspAudioEngine`, `IntelDspAudioEngine`, `TglDspAudioEngine`, `CmlDspAudioEngine` | Common SOF loader, IPC3, host ring, session state and sample conversion; platform subclasses only add identity/core mask/firmware. |
+| DSP | `IDspAudioEngine`, `IntelDspAudioEngine`, `AdlDspAudioEngine`, `TglDspAudioEngine`, `CmlDspAudioEngine` | Common SOF loader, IPC3, host ring, session state and sample conversion; platform subclasses only add identity/core mask/firmware. |
 | Creation | `IDspAudioEngineFactory`, `DspAudioEngineFactory`, `DspEngineCreateRequest/Result` | The single creation seam. Configuration is one strategy; on failure it creates a native `HdaAudioEngine`. |
 | Dispatch | `DspAudioEngineManager` | Implements `IAudioEngineHooks`, forwards to the created engine hooks or the native fallback. |
 | Routing | `HookManager` | Static AppleHDA trampolines, Lilu routes, captured `NativeHdaOps`. |
@@ -46,7 +46,7 @@ flowchart TB
         FAC["DspAudioEngineFactory"]
         DE["IntelDspAudioEngine (active)"]
         HDA["HdaAudioEngine<br/>native defaults + HDA hardware"]
-        PLAT["TglDspAudioEngine / CmlDspAudioEngine"]
+        PLAT["Adl / Tgl / CmlDspAudioEngine"]
         NAT["HdaAudioEngine (native fallback)"]
     end
 
@@ -123,6 +123,7 @@ classDiagram
         #inFlight
     }
 
+    class AdlDspAudioEngine
     class TglDspAudioEngine
     class CmlDspAudioEngine
     class DspAudioEngineManager {
@@ -144,6 +145,7 @@ classDiagram
     IAudioEngineHooks <|.. HdaAudioEngine
     HdaAudioEngine <|-- IntelDspAudioEngine
     IDspAudioEngine <|.. IntelDspAudioEngine
+    IntelDspAudioEngine <|-- AdlDspAudioEngine
     IntelDspAudioEngine <|-- TglDspAudioEngine
     IntelDspAudioEngine <|-- CmlDspAudioEngine
     IAudioEngineHooks <|.. DspAudioEngineManager
@@ -164,7 +166,7 @@ classDiagram
 | `HdaAudioEngine` | Default native behaviour + HDA hardware access. The Manager's native fallback only uses the hooks; it never attaches hardware. |
 | `IDspAudioEngine` | Control/status contract used by the Manager and factory. |
 | `IntelDspAudioEngine` | Common DSP implementation; owns ring buffers, IPC, session state and the fill path. |
-| `TglDspAudioEngine` / `CmlDspAudioEngine` | cAVS 2.5 / 1.8 identity, core mask, embedded firmware image. |
+| `AdlDspAudioEngine` / `TglDspAudioEngine` / `CmlDspAudioEngine` | Alder Lake / Tiger Lake (cAVS 2.5) and Comet Lake (cAVS 1.8) identity, core mask, embedded firmware image. |
 | `DspAudioEngineManager` | Proxy implementing `IAudioEngineHooks`; owns the factory result and forwards. |
 | `DspAudioEngineFactory` | Creates the concrete engine from a layout; on failure creates native fallback and retains an error string. |
 | `LayoutRegistry` | Parses `Layouts.plist`, merges built-in layouts, resolves boot-argument selection. |
@@ -179,7 +181,7 @@ classDiagram
    Intel HDA controller.
 2. `IntelSSTDMIC::start` loads the layout registry, resolves the layout, creates the manager and
    calls `factory.create()`.
-3. The factory creates `TglDspAudioEngine`/`CmlDspAudioEngine`, calls `initialize()` and returns it.
+3. The factory creates `AdlDspAudioEngine`/`TglDspAudioEngine`/`CmlDspAudioEngine`, calls `initialize()` and returns it.
    On any failure it creates a native `HdaAudioEngine` and stores `CreateError`.
 4. `HookManager` routes AppleHDA symbols when AppleHDA loads and injects `NativeHdaOps` into the
    manager and engine.
@@ -282,7 +284,7 @@ present, otherwise the detected platform default; `0` creates the native `HdaAud
 the driver installs no DSP hooks and stays fully native.
 
 Layout ids start at 1 (0 is reserved for disabled). Built-in layouts: 1 (TGL X13 stereo), 2 (CML
-X1C7), 3 (TGL X13 mono). All entries in `Layouts/Layouts.plist` are compiled into the binary and
+X1C7), 3 (TGL X13 mono), 4 (ADL generic stereo). All entries in `Layouts/Layouts.plist` are compiled into the binary and
 copied into the kext `Info.plist` (`IntelSSTDMLayouts`, `IntelSSTDMLayoutIDs`) at build time.
 
 Key fields: `platform`, `engine`, `micCount`, `codecs` (metadata), `dsp.{firmware,streamIndex,
