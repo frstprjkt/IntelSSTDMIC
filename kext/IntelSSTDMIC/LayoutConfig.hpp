@@ -57,6 +57,9 @@ public:
     const LayoutConfig *find(uint32_t id) const;
     const LayoutConfig *findByName(const char *name) const;
     const LayoutConfig *defaultFor(PlatformFamily platform) const;
+    // First layout of the platform whose micCount matches (e.g. from the ACPI NHLT); the platform
+    // default when none matches.
+    const LayoutConfig *defaultFor(PlatformFamily platform, uint32_t micCount) const;
     const LayoutConfig *at(uint32_t index) const;
     uint32_t count() const { return layoutCount; }
     bool addLayout(const LayoutConfig &layout) { return add(layout); }

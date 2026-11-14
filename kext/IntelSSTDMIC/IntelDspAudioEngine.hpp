@@ -10,6 +10,7 @@
 
 class OSArray;
 struct IpcMsg;
+struct IpcPipeline;
 
 class IntelDspAudioEngine : public HdaAudioEngine, public IDspAudioEngine {
 public:
@@ -89,6 +90,7 @@ protected:
     bool corePowerUp();
     bool coreRun();
     void corePowerDownInternal();
+    void coreResetPowerDown(uint32_t mask);
     bool dspAlive(bool logReason);
     bool ipcSend(const uint32_t *msg, uint32_t words, uint32_t *reply = nullptr,
                  uint32_t replyWords = 0);
@@ -111,6 +113,7 @@ protected:
 
     uint32_t captureIdx {6}, captureTag {7};
     uint32_t srcChannels {4}, srcFrameBytes {16};
+    const IpcPipeline *ipc {nullptr};    // captured SOF pipeline for srcChannels (2 or 4)
     uint32_t imicTagValue {0}, imicSafetyFrames {57};
 
     IOService *imicEngine {nullptr};

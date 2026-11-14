@@ -57,6 +57,7 @@ private:
     void publish();
     void detectPlatform(uint16_t device);
     const LayoutConfig *selectLayout();
+    uint32_t nhltMicCount();     // PDM mics in the ACPI NHLT, 0 when unavailable
     void joinPowerParent();
     bool memoryDecoded() const;
     bool inD0() const;

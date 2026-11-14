@@ -2,6 +2,8 @@
 #include "DspAudioEngineManager.hpp"
 #include "HookManager.hpp"
 #include "BootArgs.hpp"
+#include "Nhlt.hpp"
+#include <IOKit/acpi/IOACPIPlatformDevice.h>
 #include <IOKit/IOLib.h>
 #include <IOKit/pci/IOPCIDevice.h>
 #include <libkern/version.h>
@@ -103,6 +105,19 @@ static bool parseLayoutArg(const char *text, int32_t &value) {
     return true;
 }
 
+// IOACPIPlatformExpert::getACPITableData is protected; the public path is the controller's own
+// ACPI node (IOPCIDevice "acpi-device", e.g. _SB.PCI0.HDAS), which forwards to the platform.
+uint32_t IntelSSTDMIC::nhltMicCount() {
+    auto pe = pci ? OSDynamicCast(IOACPIPlatformDevice, pci->getProperty("acpi-device")) : nullptr;
+    const OSData *t = pe ? pe->getACPITableData("NHLT", 0) : nullptr;   // owned by the platform expert
+    if (!t || !t->getLength()) {
+        logLine("NHLT: %s", pe ? "no table" : "controller has no acpi-device");
+        return 0;
+    }
+    auto info = Nhlt::dmicInfo(static_cast<const uint8_t *>(t->getBytesNoCopy()), t->getLength());
+    logLine("NHLT: %u bytes, %u PDM mic(s), array type 0x%02x", t->getLength(), info.mics, info.arrayType);
+    return info.mics;
+}
 const LayoutConfig *IntelSSTDMIC::selectLayout() {
     layoutDisabled = false;
     layoutRequested = false;
@@ -158,8 +173,15 @@ const LayoutConfig *IntelSSTDMIC::selectLayout() {
     }
 
     // Auto: optional named layout/model first, then the detected platform default.
-    const LayoutConfig *p = registry.resolve(-1, profile[0] ? profile : nullptr,
-                                             model[0] ? model : nullptr, platformFamily);
+    // With no named layout/model, the NHLT mic count picks among the platform's layouts (2-mic Comet
+    // Lake laptops get the 2 ch pipeline, 4-mic ones the 4 ch one); no usable NHLT = platform default.
+    const LayoutConfig *p;
+    if (!profile[0] && !model[0]) {
+        uint32_t mics = nhltMicCount();
+        p = mics ? registry.defaultFor(platformFamily, mics) : registry.defaultFor(platformFamily);
+    } else {
+        p = registry.resolve(-1, profile[0] ? profile : nullptr, model[0] ? model : nullptr, platformFamily);
+    }
     if (p && p->valid)
         logLine("layout %u auto-selected (%s, %s, engine %s, firmware %s)",
                 p->id, p->name, platformTag(p->platform), p->engine, p->firmware);
