@@ -17,7 +17,7 @@ Layout 5. Verified on one machine, see "Verification" below.
    `core power up`. The kext now sets it while the DSP runs and restores it afterwards
    (`-sstdmicgproc=0` turns this off).
 2. **2 ch SOF pipeline.** The 4 ch IPC table does not fit one PDM controller. `IpcReplay2ch.hpp`
-   was captured from Linux SOF on this machine (`sof-hda-generic-2ch`). The layout's
+   was captured from Linux SOF on this machine. The layout's
    `sourceChannels` (2 or 4) selects the table and the HDA capture format.
 3. **Cores 1..3 are powered down** after the ROM IPC ack, as Linux `cl_dsp_init` does.
 4. **Layout auto-selection uses the NHLT.** `-sstdmiclayout=auto` counts the PDM mics in the ACPI
