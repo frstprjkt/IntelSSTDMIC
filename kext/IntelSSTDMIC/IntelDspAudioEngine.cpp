@@ -1,6 +1,7 @@
 #include "IntelDspAudioEngine.hpp"
 #include "Regs.hpp"
 #include "IpcReplay.hpp"
+#include "IpcReplay2ch.hpp"
 #include <IOKit/IOLib.h>
 #include <IOKit/pci/IOPCIDevice.h>
 #include <kern/clock.h>
@@ -22,7 +23,15 @@ constexpr uint32_t XMAN_MAGIC = 0x6e614d58;
 constexpr uint32_t VS_D0I3C = 0x104A, D0I3C_I3 = 1u << 2;
 constexpr uint32_t SPB_SPBFCCTL = 0x04, SPB_SPIB_BASE = 0x08, SPB_SPIB_STRIDE = 0x08;
 constexpr uint32_t PAGES = 0x10000 / 4096;
-constexpr uint16_t FMT_48K_32BIT_4CH = 0x0043;
+// HDA SD_FMT: BASE 48 kHz, BITS = 100 (32-bit container), CHAN = channels - 1
+constexpr uint16_t FMT_48K_32BIT = 0x0040;
+// Captured SOF pipelines (linux/extract-ipc.py). Same topology (pipeline 10); the 2 ch one differs in
+// DAI_CONFIG (1 PDM controller), buffer sizes, the volume component's channel count and the PCM channels.
+const IpcPipeline kPipe4ch = { kIpc_setup, COUNT(kIpc_setup), kIpc_start, COUNT(kIpc_start), kIpc_stop,
+    COUNT(kIpc_stop), kIpc_teardown, COUNT(kIpc_teardown), 4, "HP EliteBook 840 G8" };
+const IpcPipeline kPipe2ch = { kIpc2ch_setup, COUNT(kIpc2ch_setup), kIpc2ch_start, COUNT(kIpc2ch_start),
+    kIpc2ch_stop, COUNT(kIpc2ch_stop), kIpc2ch_teardown, COUNT(kIpc2ch_teardown), 2,
+    "Lenovo XiaoXin Pro 13 2020" };
 
 inline uint32_t SPA(uint32_t m) { return m << 16; }
 inline uint32_t CPA(uint32_t m) { return m << 24; }
@@ -72,10 +81,11 @@ bool IntelDspAudioEngine::initialize(const DspEngineContext &ctx) {
         return false;
     }
     srcChannels = cfg->sourceChannels ? cfg->sourceChannels : 4;
-    if (srcChannels != 4) {
-        snprintf(errorText, sizeof(errorText), "layout %u: sourceChannels must be 4 (S32_LE x4)", cfg->id);
+    if (srcChannels != 2 && srcChannels != 4) {
+        snprintf(errorText, sizeof(errorText), "layout %u: sourceChannels must be 2 or 4 (S32_LE)", cfg->id);
         return false;
     }
+    ipc = (srcChannels == 2) ? &kPipe2ch : &kPipe4ch;
     srcFrameBytes = srcChannels * 4;
 
     captureIdx = cfg->streamIndex ? cfg->streamIndex : defaultCaptureIndex();
@@ -599,6 +609,9 @@ bool IntelDspAudioEngine::bootFirmware() {
         if (!coreRun()) break;
         if (!pollDsp(DSP::HIPCIDA, DSP::IPC_DONE, DSP::IPC_DONE, 500000, &v)) { fail("ROM IPC ack", v); break; }
         dw32(DSP::HIPCIDA, d32(DSP::HIPCIDA) | DSP::IPC_DONE);
+        // cl_dsp_init step 5: the ROM and this pipeline run on core 0 only; power the other
+        // host-managed cores (cAVS 1.8: 1..3) back down, as Linux hda_dsp_core_reset_power_down() does.
+        if (uint32_t others = targetCoreMask() & ~CORE0) coreResetPowerDown(others);
         if (!pollDsp(DSP::ROM_STATUS, FSR_MASK, FSR_INIT_DONE, 300000, &v)) { fail("ROM init", v); break; }
         uint32_t sd = sdOffset(idx);
         w32(sd, r32(sd) | HDA::SD_CTL_RUN | SD_CTL_INT_MASK);
@@ -677,7 +690,7 @@ bool IntelDspAudioEngine::prepareIpcStream(uint32_t idx, uint32_t tag) {
     w32(sd + HDA::SD_BDPL, 0); w32(sd + HDA::SD_BDPU, 0);
     w32(sd, (r32(sd) & ~SD_TAG_MASK) | (tag << HDA::SD_CTL_TAG_SHIFT));
     w32(sd + HDA::SD_CBL, kRingBytes);
-    w16(sd + HDA::SD_FMT, FMT_48K_32BIT_4CH);
+    w16(sd + HDA::SD_FMT, (uint16_t)(FMT_48K_32BIT | (srcChannels - 1)));
     w16(sd + HDA::SD_LVI, kRingBytes / kPeriodBytes - 1);
     w32(sd + HDA::SD_BDPL, (uint32_t)capBdl.iova);
     w32(sd + HDA::SD_BDPU, (uint32_t)(capBdl.iova >> 32));
@@ -692,12 +705,12 @@ bool IntelDspAudioEngine::startStream() {
     if (!ensureBuffers()) return fail("DMA alloc");
     bzero(ringBuf.virt, ringBuf.size);
     if (!prepareIpcStream(captureIdx, captureTag)) return false;
-    if (!replay(kIpc_setup, COUNT(kIpc_setup), "setup")) { stopStream(); return false; }
+    if (!replay(ipc->setup, ipc->setupCount, "setup")) { stopStream(); return false; }
     pipelineReady = true;
     w32(sd, r32(sd) | HDA::SD_CTL_RUN | SD_CTL_INT_MASK);
     uint32_t v = 0;
     pollHda(sd, 0x20000000, 0x20000000, 5000, &v);
-    if (!replay(kIpc_start, COUNT(kIpc_start), "start")) { stopStream(); return false; }
+    if (!replay(ipc->start, ipc->startCount, "start")) { stopStream(); return false; }
     triggered = true;
     return true;
 }
@@ -706,12 +719,12 @@ void IntelDspAudioEngine::stopStream() {
     const uint32_t sd = sdOffset(captureIdx);
     if (!dsp()) return;
     const bool alive = dspAlive(false);
-    if (triggered && alive) replay(kIpc_stop, 1, "stop");
+    if (triggered && alive) replay(ipc->stop, 1, "stop");
     w32(sd, r32(sd) & ~(HDA::SD_CTL_RUN | SD_CTL_INT_MASK));
     pollHda(sd, HDA::SD_CTL_RUN, 0, 5000);
     if (pipelineReady && alive) {
-        if (triggered) replay(kIpc_stop + 1, COUNT(kIpc_stop) - 1, "pcm-free");
-        replay(kIpc_teardown, COUNT(kIpc_teardown), "teardown");
+        if (triggered) replay(ipc->stop + 1, ipc->stopCount - 1, "pcm-free");
+        replay(ipc->teardown, ipc->teardownCount, "teardown");
     }
     streamStopReset(sd);
     w32(sd + HDA::SD_BDPL, 0); w32(sd + HDA::SD_BDPU, 0);
@@ -782,6 +795,16 @@ bool IntelDspAudioEngine::coreRun() {
     return true;
 }
 
+// Stall + reset the given cores, then remove their power (hda_dsp_core_reset_power_down). Not fatal.
+void IntelDspAudioEngine::coreResetPowerDown(uint32_t mask) {
+    dw32(DSP::ADSPCS, d32(DSP::ADSPCS) | CSTALL(mask));
+    dw32(DSP::ADSPCS, d32(DSP::ADSPCS) | CRST(mask));
+    pollDsp(DSP::ADSPCS, CRST(mask), CRST(mask), 50000);
+    dw32(DSP::ADSPCS, d32(DSP::ADSPCS) & ~SPA(mask));
+    uint32_t v = 0;
+    bool ok = pollDsp(DSP::ADSPCS, CPA(mask), 0, 50000, &v);
+    log("cores 0x%x %s, ADSPCS 0x%08x", mask, ok ? "powered down" : "did NOT power down", v);
+}
 void IntelDspAudioEngine::corePowerDownInternal() {
     if (!dsp()) return;
     uint32_t mask = targetCoreMask();

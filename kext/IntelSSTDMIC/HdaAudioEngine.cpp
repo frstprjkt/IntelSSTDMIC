@@ -219,9 +219,30 @@ void HdaAudioEngine::gating(bool enable) {
         pciDev->configWrite32(PCI_CGCTL, savedCgctl & ~PCI_CGCTL_ADSPDCGE);
         w32(HDA_EM2, savedEm2 & ~EM2_L1SEN);
         pciDev->configWrite32(PCI_PGCTL, savedPgctl | PCI_PGCTL_ADSPPGD);
+        // PPCTL.GPROCEN (bit 30) is the global "DSP processing enable". Linux SOF sets it once at probe
+        // (hda_dsp_ctrl_ppcap_enable). Without it the DSP ignores ADSPCS SPA writes and CPA never comes up.
+        // Some firmwares (ThinkPad X1C7, EliteBook 840 G8) leave it set before macOS starts; others
+        // (Lenovo XiaoXin Pro 13 2020, 17aa:380f) leave PPCTL = 0, which fails every boot at
+        // "core power up (CPA)". Set it for the DSP's lifetime and restore the HDA driver's value after.
+        // sstdmicgproc=0 disables this.
+        int gprocArg = 1;
+        PE_parse_boot_argn("sstdmicgproc", &gprocArg, sizeof(gprocArg));
+        gprocenForced = false;
+        if (gprocArg != 0 && ppCapOffset) {
+            uint32_t ppctl = r32(ppCapOffset + HDA::PP_PPCTL);
+            if (!(ppctl & HDA::PPCTL_GPROCEN)) {
+                w32(ppCapOffset + HDA::PP_PPCTL, ppctl | HDA::PPCTL_GPROCEN);
+                gprocenForced = true;
+                IODelay(100);
+            }
+        }
     } else {
         if (!gatingDisabled) return;
         gatingDisabled = false;
+        if (gprocenForced && ppCapOffset) {
+            gprocenForced = false;
+            w32(ppCapOffset + HDA::PP_PPCTL, r32(ppCapOffset + HDA::PP_PPCTL) & ~HDA::PPCTL_GPROCEN);
+        }
         pciDev->configWrite32(PCI_PGCTL, savedPgctl);
         w32(HDA_EM2, savedEm2);
         pciDev->configWrite32(PCI_CGCTL, savedCgctl);

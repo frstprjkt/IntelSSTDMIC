@@ -57,6 +57,11 @@ const LayoutConfig *LayoutRegistry::defaultFor(PlatformFamily platform) const {
     return &none();
 }
 
+const LayoutConfig *LayoutRegistry::defaultFor(PlatformFamily platform, uint32_t micCount) const {
+    for (uint32_t i = 0; i < layoutCount; i++)
+        if (layouts[i].platform == platform && layouts[i].micCount == micCount) return &layouts[i];
+    return defaultFor(platform);
+}
 const LayoutConfig *LayoutRegistry::at(uint32_t index) const {
     return index < layoutCount ? &layouts[index] : nullptr;
 }

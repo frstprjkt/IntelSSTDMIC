@@ -84,6 +84,7 @@ protected:
     bool controllerReady {false};
 
     bool gatingDisabled {false};
+    bool gprocenForced {false};      // PPCTL.GPROCEN set by us (firmware left it clear); cleared in gating(true)
     uint32_t savedCgctl {0}, savedPgctl {0}, savedEm2 {0};
     uint16_t savedDevc {0};
     bool devcChanged {false};

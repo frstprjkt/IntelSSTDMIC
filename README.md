@@ -124,6 +124,7 @@ images are compiled into the executable.
 | `-sstdmicfw=adl\|tgl\|cml` | Platform/firmware selector; also chooses the platform default layout. |
 | `-sstdmicgain=<pct>` | Software gain override (0-400). |
 | `-sstdmiccoremask=<n>` | Override the DSP core mask. |
+| `-sstdmicgproc=0` | Do not set `PPCTL.GPROCEN` (the global DSP processing enable) while the DSP runs. Default is to set it when the firmware left it clear, and restore it afterwards. |
 | `-sstdmicsnoop=0\|2` | Do not touch PCI DEVC NSNPEN / leave it set. |
 | `-sstdmicpower=0\|1` | Never / always join the HDA driver's power tree. |
 | `-sstdmicadl`, `-sstdmiccml`, `-sstdmictgl` | Force platform family on unlisted or spoofed PCI ids. |
@@ -135,8 +136,9 @@ images are compiled into the executable.
 
 `-sstdmiclayout` is the master switch and has three modes:
 
-- `auto`: if `-sstdmicprofile`/`-sstdmicmodel` is given, use it; otherwise select the detected
-  platform's default layout. If the argument is absent the driver does not install DSP hooks and
+- `auto`: if `-sstdmicprofile`/`-sstdmicmodel` is given, use it; otherwise read the ACPI NHLT
+  table and pick the detected platform's layout with the same PDM microphone count (falling back to
+  the platform default when the NHLT is missing). If the argument is absent the driver does not install DSP hooks and
   stays fully native.
 - `0`: disable DSP creation; the factory creates the native HDA engine directly.
 - `N > 0`: create layout N. If the id is unknown or engine initialization fails, the error is
@@ -152,6 +154,7 @@ Built-in layouts (built from `Layouts/Layouts.plist`):
 | 2 | Comet Lake | 4 | `cml` | ThinkPad X1 Carbon Gen 7 |
 | 3 | Tiger Lake | 2 | `tgl` | mono mix |
 | 4 | Alder Lake | 2 | `adl` | ADL-P/U/M/S DMIC |
+| 5 | Comet Lake | 2 | `cml` | Lenovo XiaoXin Pro 13 2020 (2 DMIC, ALC257), see [docs/XIAOXIN-PRO13.md](docs/XIAOXIN-PRO13.md) |
 
 Schema (`Layouts.plist`):
 
@@ -165,7 +168,7 @@ Schema (`Layouts.plist`):
 | `codecs` | Optional ALC model list (metadata; runtime engine identity is discovered from AppleHDA). |
 | `dsp.firmware` | Firmware identity (informational; the platform engine embeds its image). |
 | `dsp.streamIndex`, `dsp.pcmTag`, `dsp.pipelineId` | DSP host stream and IPC identifiers. |
-| `dsp.sourceRate`, `sourceChannels`, `sourceBits` | DSP host ring format; `sourceChannels` must be 4 and bits 32. |
+| `dsp.sourceRate`, `sourceChannels`, `sourceBits` | DSP host ring format; `sourceChannels` must be 2 or 4 (selects the captured SOF pipeline) and bits 32. |
 | `dsp.gain` | Software gain percentage. |
 | `hda.outputChannels`, `channelMap` | Core Audio channel mapping. |
 | `hda.sampleRates`, `bits` | Supported HDA engine formats (the DSP ring stays at 48 kHz and is resampled). |
