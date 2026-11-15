@@ -128,6 +128,7 @@ protected:
     volatile bool active {false};
     volatile uint32_t inFlight {0};
     volatile uint32_t sessionState {0};   // 0 idle, 1 starting, 2 streaming, 3 stopping
+    volatile uint32_t dspBootState {0};   // 0 idle, 1 booting, 2 ready
     volatile bool powerLost {false};
 
     bool bootDone {false};

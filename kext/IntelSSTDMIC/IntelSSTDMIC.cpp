@@ -322,16 +322,23 @@ IOReturn IntelSSTDMIC::setPowerState(unsigned long state, IOService *) {
             IOPMrootDomain *root = getPMRootDomain();
             bool systemSleep = root && root->getPowerState() == 0;
             if (systemSleep) {
+                systemSleeping = true;
                 logLine("system sleep: stopping DSP session");
                 manager->onPowerLostSync();
             } else if (!selfReleasingPower) {
-                // The HDA driver idling its device power state must not stop the input session.
+                // Device-level idling while the system is awake. Hold power and keep the session,
+                // but never re-run DSP init/start: this used to race the first recording.
                 logLine("device power 0 while system awake - keeping DSP session");
                 changePowerStateTo(1);
             }
         } else if (state == 1) {
-            logLine("power state 1 (wake): restoring DSP session if needed");
-            manager->onPowerRestored();
+            if (systemSleeping) {
+                systemSleeping = false;
+                logLine("system wake: DSP will be reinitialised on next start");
+                manager->onPowerRestored();
+            } else {
+                logLine("device power 1 while system awake - no DSP action");
+            }
         }
         if (state != old) publish();
     }

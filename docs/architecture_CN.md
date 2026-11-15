@@ -251,10 +251,14 @@ fill 路径不加锁、不分配、不写日志。teardown 先 `active=false`，
 
 ### 5.4 电源
 
-Service 加入 AppleHDA 的 PM 树。录音期间保持 state 1；`setPowerState(0)` 同步调用
-`Manager::onPowerLostSync()`，停止会话并给 core 下电。唤醒时 `setPowerState(1)` 调用
-`onPowerRestored()`；HPSRAM 丢失时立即重新加载固件，原生引擎仍在运行则重启 DSP 会话。
-`holdPower` 只做很短等待，因为它运行在 AppleHDA 的回调里。
+固件启动是单飞的（`dspBootState`）：`initHardware` 和首次 start 共用同一次 boot，竞争调用会
+等待而不是自行操作 loader stream；`bootFirmware()` 在 `active`/streaming 时拒绝复位 core。
+
+Service 加入 AppleHDA 的 PM 树。只有真正的系统睡眠才设置 `systemSleeping` 并同步调用
+`Manager::onPowerLostSync()`，停止会话并给 core 下电。系统清醒时的设备级电源切换只维持供电，
+绝不重新执行 DSP 初始化或会话启动。唤醒时 `setPowerState(1)` 调用 `onPowerRestored()`，仅使
+boot 状态失效；下一次 `performAudioEngineStart` 才重新加载固件。`holdPower` 只做很短等待，因为
+它运行在 AppleHDA 的回调里。
 
 ## 6. Hook 列表
 

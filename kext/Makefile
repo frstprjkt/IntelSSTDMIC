@@ -9,7 +9,7 @@ FW_CML   = Firmware/CML/sof-cml.ri
 FW_ADL   = Firmware/ADL/sof-adl.ri
 LAYOUTS  = ../Layouts/Layouts.plist
 LAYOUTPY = ../tools/embed-layouts.py
-VERSION  = 1.0.2
+VERSION  = 1.0.3
 SRC      = IntelSSTDMIC
 OBJS     = build/IntelSSTDMIC.o build/LayoutConfig.o build/HdaAudioEngine.o build/IntelDspAudioEngine.o \
            build/DspEngines.o build/DspAudioEngineFactory.o build/DspAudioEngineManager.o \

@@ -212,9 +212,11 @@ reason, and AppleHDA continues normally.
 ## Power and session behaviour
 
 Lifecycle hooks are synchronous; there is no timer or periodic descriptor scan. The sample path is
-lock-free (`active` + `inFlight`). On system sleep `setPowerState(0)` stops the session and powers
-the DSP core down; wake clears the power-lost state and the next engine start reloads firmware.
-While recording the kext is a PM child of AppleHDA and holds it on.
+lock-free (`active` + `inFlight`). Firmware boot is single-flight and never resets a core that is
+serving an active session. On system sleep `setPowerState(0)` stops the session and powers the DSP
+core down; wake only clears the power-lost state and the next `performAudioEngineStart` reloads the
+firmware. Device-level power transitions while the system is awake never trigger DSP init or a
+session restart. While recording the kext is a PM child of AppleHDA and holds it on.
 
 ## Licence
 

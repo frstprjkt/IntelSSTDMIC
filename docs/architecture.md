@@ -256,11 +256,16 @@ and waits for `inFlight==0` before freeing the ring.
 
 ### 5.4 Power
 
-The service joins AppleHDA's PM tree. While recording it holds state 1; `setPowerState(0)` calls
-`Manager::onPowerLostSync()` synchronously, which stops the session and powers the core down. On
-wake `setPowerState(1)` calls `onPowerRestored()`; if the core lost HPSRAM the firmware is reloaded
-immediately, and a still-running native engine restarts the DSP session. `holdPower` only waits
-briefly because hooks run inside AppleHDA callbacks.
+Firmware boot is single-flight (`dspBootState`): `initHardware` and the first start share one
+boot, competing callers wait instead of touching the loader stream, and `bootFirmware()` refuses to
+reset a core while `active`/streaming.
+
+The service joins AppleHDA's PM tree. Only a real system sleep sets `systemSleeping` and calls
+`Manager::onPowerLostSync()`, which stops the session and powers the core down. Device-level power
+transitions while the system is awake only hold power and never re-run DSP init or start. On wake
+`setPowerState(1)` calls `onPowerRestored()`, which just invalidates the boot state; the next
+`performAudioEngineStart` reloads the firmware. `holdPower` only waits briefly because hooks run
+inside AppleHDA callbacks.
 
 ## 6. Hooked functions
 

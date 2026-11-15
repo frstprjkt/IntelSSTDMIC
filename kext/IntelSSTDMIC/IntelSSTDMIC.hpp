@@ -11,7 +11,7 @@ class IOPCIDevice;
 class DspAudioEngineManager;
 class OSArray;
 
-#define kIntelSSTDMICVersion "1.0.1"
+#define kIntelSSTDMICVersion "1.0.3"
 
 class IntelSSTDMIC : public IOService, public IDspHost {
     OSDeclareDefaultStructors(IntelSSTDMIC)
@@ -53,6 +53,7 @@ private:
     IOService *pmParent {nullptr};
     uint32_t pmSearchTicks {0};
     unsigned long pmState {0};
+    volatile bool systemSleeping {false};
 
     void publish();
     void detectPlatform(uint16_t device);

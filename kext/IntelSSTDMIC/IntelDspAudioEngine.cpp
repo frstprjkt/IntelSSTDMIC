@@ -103,8 +103,8 @@ bool IntelDspAudioEngine::initialize(const DspEngineContext &ctx) {
 }
 
 void IntelDspAudioEngine::shutdown() {
-    // A start hook may be in progress on another thread; let it commit or roll back first.
-    for (uint32_t i = 0; i < 500 && sessionState == 1; i++) IOSleep(1);
+    // A start hook or firmware boot may be in progress on another thread; let it finish first.
+    for (uint32_t i = 0; i < 3000 && (sessionState == 1 || dspBootState == 1); i++) IOSleep(1);
     powerDownSession("shutdown");
     releaseBuffers();
     releaseEngineCache();
@@ -438,7 +438,7 @@ bool IntelDspAudioEngine::startSession(IOService *self) {
         rollbackSession();
         return false;
     }
-    if (!isAlive() && !bootFirmware()) {
+    if (!isAlive() && !initializeDsp()) {
         rollbackSession();
         return false;
     }
@@ -471,15 +471,11 @@ bool IntelDspAudioEngine::startSession(IOService *self) {
 
 void IntelDspAudioEngine::onPowerRestored() {
     powerLost = false;
-    log("power restored");
-    if (!imicEngine) return;
-    // Firmware is lost with HPSRAM after system sleep; reinitialise it early.
-    if (!isAlive()) initializeDsp();
-    OSNumber *state = OSDynamicCast(OSNumber, imicEngine->getProperty("IOAudioEngineState"));
-    if (state && state->unsigned32BitValue() != 0) {
-        log("engine still running after wake - restarting DSP session");
-        startSession(imicEngine);
-    }
+    // HPSRAM is gone after a real system sleep. Do not boot or restart here: this runs on the PM
+    // thread and may race the first recording. The next performAudioEngineStart reinitialises the
+    // DSP from a known state.
+    dspBootState = isAlive() ? 2u : 0u;
+    log("power restored - DSP will be reinitialised on next start");
 }
 
 void IntelDspAudioEngine::rollbackSession() {
@@ -496,6 +492,7 @@ void IntelDspAudioEngine::rollbackSession() {
     pipelineReady = false;
     triggered = false;
     sessionState = 0;
+    dspBootState = 0;
     dspInit = false;
     if (host) host->stateChanged();
 }
@@ -523,23 +520,40 @@ void IntelDspAudioEngine::stopStreaming(const char *why) {
 
 bool IntelDspAudioEngine::initializeDsp() {
     if (!host || !imicEngine) return false;
-    if (isAlive()) return true;
-    if (!host->holdPower()) {
-        log("DSP init: controller power unavailable");
-        return false;
+    if (isAlive()) {
+        dspBootState = 2;
+        return true;
     }
-    if (!probe() || !ensureDspMapped()) {
-        log("DSP init: controller not ready");
-        host->releasePower();
-        return false;
+
+    // Single flight: only one firmware boot may run at a time. Callers that lose the race wait
+    // for the owner instead of touching the loader stream / core registers themselves.
+    if (!__sync_bool_compare_and_swap(&dspBootState, 0u, 1u)) {
+        for (uint32_t i = 0; i < 3000 && dspBootState == 1; i++) IOSleep(1);
+        return isAlive();
     }
-    if (!bootFirmware()) {
-        host->releasePower();
-        return false;
+
+    bool ok = false;
+    for (uint32_t attempt = 0; attempt < 2 && !ok; attempt++) {
+        if (attempt) IOSleep(10);
+        if (!host->holdPower()) {
+            log("DSP init: controller power unavailable");
+            break;
+        }
+        if (!probe() || !ensureDspMapped()) {
+            log("DSP init: controller not ready");
+            host->releasePower();
+            continue;
+        }
+        ok = bootFirmware();
+        if (!ok) host->releasePower();
     }
-    log("DSP initialized (initHardware), core stays powered for the engine lifetime");
-    if (host) host->stateChanged();
-    return true;
+
+    dspBootState = ok ? 2u : 0u;
+    if (ok) {
+        log("DSP initialized, core stays powered for the engine lifetime");
+        if (host) host->stateChanged();
+    }
+    return ok;
 }
 
 void IntelDspAudioEngine::powerDownSession(const char *why) {
@@ -554,6 +568,8 @@ void IntelDspAudioEngine::powerDownSession(const char *why) {
         bootDone = false;
     }
     if (host) host->releasePower();
+    bootDone = false;
+    dspBootState = 0;
     log("DSP powered down (%s)", why);
     if (host) host->stateChanged();
 }
@@ -561,12 +577,19 @@ void IntelDspAudioEngine::powerDownSession(const char *why) {
 // ---- firmware / pipeline ------------------------------------------------------------------
 
 bool IntelDspAudioEngine::bootFirmware() {
+    if (bootDone && isAlive()) return true;
     if (!probe() || !ensureDspMapped()) return fail("controller not ready");
     if (!ppOffset()) return fail("no PP capability");
 
     uint32_t adspcs = d32(DSP::ADSPCS);
     if (adspcs == 0xFFFFFFFF) return fail("ADSPCS unreadable", adspcs);
-    if (adspcs & CPA(CORE0)) corePowerDownInternal();
+    if (adspcs & CPA(CORE0)) {
+        // Never reset a core that is serving an active session. A stray PM-driven re-init used to
+        // power down the DSP underneath the first recording and corrupt it.
+        if (active || sessionState == 2 || sessionState == 3)
+            return fail("reset while streaming", sessionState);
+        corePowerDownInternal();
+    }
 
     uint32_t fwSize = 0;
     const uint8_t *fw = firmwareImage(fwSize);
@@ -642,8 +665,10 @@ bool IntelDspAudioEngine::bootFirmware() {
         snprintf(errorText, sizeof(errorText), "OK FW_READY");
         log("firmware running (FW_READY)");
     } else {
-        corePowerDownInternal();
-        gating(true);
+        if (!active && sessionState != 2 && sessionState != 3) {
+            corePowerDownInternal();
+            gating(true);
+        }
         if (forcedBme) device()->setBusMasterEnable(false);
         if (d0i3 & D0I3C_I3) w8(VS_D0I3C, d0i3);
     }
