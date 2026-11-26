@@ -127,7 +127,8 @@ bool IntelDspAudioEngine::ownsEngine(IOService *self) const {
 bool IntelDspAudioEngine::isInternalMicEngine(IOService *self) const {
     if (!self) return false;
     OSString *desc = OSDynamicCast(OSString, self->getProperty("IOAudioEngineDescription"));
-    return desc && desc->isEqualTo("DevShortNameIMic");
+    return desc && (desc->isEqualTo("DevShortNameIMic") || desc->isEqualTo("Built-in Microphone") ||
+                    desc->isEqualTo("Built-in Input"));
 }
 
 bool IntelDspAudioEngine::isAlive() const {
