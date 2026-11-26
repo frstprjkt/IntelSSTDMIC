@@ -29,6 +29,7 @@ static const char *platformTag(PlatformFamily platform) {
         case PlatformFamily::TigerLake: return "TGL";
         case PlatformFamily::CometLake: return "CML";
         case PlatformFamily::AlderLake: return "ADL";
+        case PlatformFamily::RaptorLake: return "RPL";
         default: return "?";
     }
 }
@@ -38,6 +39,7 @@ static const char *platformNameOf(PlatformFamily platform) {
         case PlatformFamily::TigerLake: return "TigerLake";
         case PlatformFamily::CometLake: return "CometLake";
         case PlatformFamily::AlderLake: return "AlderLake";
+        case PlatformFamily::RaptorLake: return "RaptorLake";
         default: return "Unknown";
     }
 }
@@ -82,11 +84,14 @@ void IntelSSTDMIC::detectPlatform(uint16_t device) {
             platformFamily = PlatformFamily::AlderLake; break;
         case 0x34C8:
             platformFamily = PlatformFamily::CometLake; break;
+        case 0x51CA:
+            platformFamily = PlatformFamily::RaptorLake; break;
         default: break;
     }
     if (bootArg("-sstdmiccml")) platformFamily = PlatformFamily::CometLake;
     else if (bootArg("-sstdmictgl")) platformFamily = PlatformFamily::TigerLake;
     else if (bootArg("-sstdmicadl")) platformFamily = PlatformFamily::AlderLake;
+    else if (bootArg("-sstdmicrpl")) platformFamily = PlatformFamily::RaptorLake;
 }
 
 static bool parseLayoutArg(const char *text, int32_t &value) {
@@ -150,6 +155,8 @@ const LayoutConfig *IntelSSTDMIC::selectLayout() {
             platformFamily = PlatformFamily::CometLake;
         else if (!strcmp(fw, "adl") || !strcmp(fw, "alderlake") || !strcmp(fw, "alder-lake"))
             platformFamily = PlatformFamily::AlderLake;
+        else if (!strcmp(fw, "rpl") || !strcmp(fw, "raptorlake"))
+            platformFamily = PlatformFamily::RaptorLake;
     }
 
     if (!autoMode) {

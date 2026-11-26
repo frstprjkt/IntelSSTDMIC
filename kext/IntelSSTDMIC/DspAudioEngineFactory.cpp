@@ -49,6 +49,8 @@ DspEngineCreateResult DspAudioEngineFactory::create(const DspEngineCreateRequest
         active = new TglDspAudioEngine();
     else if (!strcmp(engine, "cml") || platform == PlatformFamily::CometLake)
         active = new CmlDspAudioEngine();
+    else if (!strcmp(engine, "rpl") || platform == PlatformFamily::RaptorLake)
+        active = new RplDspAudioEngine();
 
     if (!active) {
         snprintf(errorText, sizeof(errorText), "layout %u: unsupported engine '%s'", layout->id, engine);

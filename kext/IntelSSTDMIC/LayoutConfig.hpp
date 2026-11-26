@@ -13,6 +13,7 @@ enum class PlatformFamily : uint32_t {
     TigerLake = 1,
     CometLake = 2,
     AlderLake = 3,
+    RaptorLake = 4,
 };
 
 struct LayoutConfig {

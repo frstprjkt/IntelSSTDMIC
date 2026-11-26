@@ -7,6 +7,7 @@ LILU     ?= $(CURDIR)/../Lilu.kext/Contents/Resources
 FW_TGL   = Firmware/TGL/sof-tgl.ri
 FW_CML   = Firmware/CML/sof-cml.ri
 FW_ADL   = Firmware/ADL/sof-adl.ri
+FW_RPL   = Firmware/RPL/sof-rpl.ri
 LAYOUTS  = ../Layouts/Layouts.plist
 LAYOUTPY = ../tools/embed-layouts.py
 VERSION  = 1.0.3
@@ -33,9 +34,9 @@ build/%.o: $(SRC)/%.cpp $(SRC)/*.hpp
 	@mkdir -p build
 	clang++ $(CXXFLAGS) -c $< -o $@
 
-build/Firmware.c: $(FW_TGL) $(FW_CML) $(FW_ADL) ../tools/gen-fw.py
+build/Firmware.c: $(FW_TGL) $(FW_CML) $(FW_ADL) $(FW_RPL) ../tools/gen-fw.py
 	@mkdir -p build
-	python3 ../tools/gen-fw.py --tgl $(FW_TGL) --cml $(FW_CML) --adl $(FW_ADL) -o $@
+	python3 ../tools/gen-fw.py --tgl $(FW_TGL) --cml $(FW_CML) --adl $(FW_ADL) --rpl $(FW_RPL) -o $@
 
 build/Firmware.o: build/Firmware.c
 	clang $(CFLAGS) -c $< -o $@

@@ -7,6 +7,8 @@ extern "C" const unsigned char kSofCmlRi[];
 extern "C" const unsigned int kSofCmlRiSize;
 extern "C" const unsigned char kSofAdlRi[];
 extern "C" const unsigned int kSofAdlRiSize;
+extern "C" const unsigned char kSofRplRi[];
+extern "C" const unsigned int kSofRplRiSize;
 
 uint32_t coreMaskOverride(uint32_t def) {
     int maskArg = -1;
@@ -40,4 +42,13 @@ const uint8_t *CmlDspAudioEngine::firmwareImage(uint32_t &size) const {
 
 uint32_t CmlDspAudioEngine::targetCoreMask() const {
     return coreMaskOverride(0x0Fu);
+}
+
+const uint8_t *RplDspAudioEngine::firmwareImage(uint32_t &size) const {
+    size = kSofRplRiSize;
+    return kSofRplRi;
+}
+
+uint32_t RplDspAudioEngine::targetCoreMask() const {
+    return coreMaskOverride(1u);
 }

@@ -40,3 +40,16 @@ protected:
     const uint8_t *firmwareImage(uint32_t &size) const override;
     uint32_t targetCoreMask() const override;
 };
+
+class RplDspAudioEngine : public IntelDspAudioEngine {
+public:
+    const char *platformName() const override { return "Raptor Lake (cAVS 2.5)"; }
+    PlatformFamily platform() const override { return PlatformFamily::RaptorLake; }
+    const char *engineName() const override { return "RplDspAudioEngine"; }
+    uint32_t defaultCaptureIndex() const override { return 6; }
+    uint32_t defaultCaptureTag() const override { return 7; }
+
+protected:
+    const uint8_t *firmwareImage(uint32_t &size) const override;
+    uint32_t targetCoreMask() const override;
+};

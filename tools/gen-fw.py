@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Embed SOF firmware images in the kext:
-   gen-fw.py --tgl <sof-tgl.ri> --cml <sof-cml.ri> --adl <sof-adl.ri> -o <out.c>
+   gen-fw.py --tgl <sof-tgl.ri> --cml <sof-cml.ri> --adl <sof-adl.ri> --rpl <sof-rpl.ri> -o  <out.c>
    or legacy: gen-fw.py <input.ri> <out.c>
 """
 import sys, argparse
@@ -27,6 +27,7 @@ def main():
     parser.add_argument("--tgl", required=False, help="Tiger Lake firmware image")
     parser.add_argument("--cml", required=False, help="Comet Lake / Cannon Lake firmware image")
     parser.add_argument("--adl", required=False, help="Alder Lake firmware image")
+    parser.add_argument("--rpl", required=False, help="Raptor Lake firmware image")
     parser.add_argument("-o", "--output", required=True, help="Output C source file")
     args = parser.parse_args()
 
@@ -41,6 +42,9 @@ def main():
         if args.adl:
             data = open(args.adl, "rb").read()
             write_array(f, "kSofAdlRi", data, args.adl)
+        if args.rpl:
+            data = open(args.rpl, "rb").read()
+            write_array(f, "kSofRplRi", data, args.rpl)
 
 if __name__ == "__main__":
     main()
