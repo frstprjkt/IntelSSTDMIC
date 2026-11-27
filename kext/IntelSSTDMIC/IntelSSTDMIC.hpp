@@ -11,7 +11,7 @@ class IOPCIDevice;
 class DspAudioEngineManager;
 class OSArray;
 
-#define kIntelSSTDMICVersion "1.0.3"
+#define kIntelSSTDMICVersion "1.0.4"
 
 class IntelSSTDMIC : public IOService, public IDspHost {
     OSDeclareDefaultStructors(IntelSSTDMIC)
