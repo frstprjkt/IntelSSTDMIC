@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build:
+    name: Build
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: acidanthera/MacKernelSDK
+          ref: 05094e5e88cec7caedbfb35e8449ed0db94bf95b
+          path: MacKernelSDK
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: acidanthera/Lilu
+          ref: 1.7.2
+          path: Lilu
+          persist-credentials: false
+      - name: Prepare Lilu development files
+        shell: bash
+        run: |
+          ln -s "$GITHUB_WORKSPACE/Lilu/Lilu/Headers" $GITHUB_WORKSPACE/Lilu/Headers
+          ln -s "$GITHUB_WORKSPACE/Lilu/Lilu/Library" $GITHUB_WORKSPACE/Lilu/Library
+      - name: Build kext
+        run: |
+          bash build.sh clean
+          shasum -a 256 kext/build/dist/*.zip > kext/build/dist/SHA256SUMS
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: Artifacts
+          path: kext/build/dist/*
+          if-no-files-found: error

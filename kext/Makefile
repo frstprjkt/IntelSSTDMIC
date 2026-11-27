@@ -66,7 +66,8 @@ $(OUT): $(OBJS) $(SRC)/Info.plist build/Info.plist
 	clang++ $(LDFLAGS) $(OBJS) -o $(OUT)/Contents/MacOS/IntelSSTDMIC
 	cp build/Info.plist $(OUT)/Contents/Info.plist
 	codesign -f -s - $(OUT) || true
-	cd build && ditto -c -k --keepParent IntelSSTDMIC.kext IntelSSTDMIC.kext.zip
+	mkdir build/dist
+	cd build && ditto -c -k --keepParent IntelSSTDMIC.kext dist/IntelSSTDMIC-$(VERSION).zip
 	@echo "built $(OUT) (firmware embedded from kext/Firmware)"
 	@nm -gU $(OUT)/Contents/MacOS/IntelSSTDMIC | grep -E 'kmod_info|_start' || true
 
